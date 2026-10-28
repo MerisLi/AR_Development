@@ -10,6 +10,7 @@ format: html
 ---
 
 #import file
+
 ```{r}
 #make sure you set the folder where your file is saved as the current working directory
 #check whether the excel file names are the same and don't change the dataframe name
@@ -23,6 +24,7 @@ key_ref <- read_excel("10.26_Cipro_BZB_testRun.xlsx", sheet="keys")
 ```
 
 #clean and combine
+
 ```{r}
 cipro_BZB_15h$"Cycle Nr." <- as.numeric(cipro_BZB_15h$"Cycle Nr.")
 
@@ -60,8 +62,8 @@ df_clean <- pivoted_OD%>%
   
 ```
 
-
 #add a key col
+
 ```{r}
 df_clean<- left_join(df_clean, key_ref[, c("well_ID", "key", "cipro_ug_mL", "trial", "trial_rep", "trial_ID")], by = "well_ID")
 
@@ -70,6 +72,7 @@ df_clean$cipro_ug_mL<-factor(as.numeric(df_clean$cipro_ug_mL))
 ```
 
 #calculate mean from replicates
+
 ```{r}
 df_summarise <- df_clean %>%
   filter(trial != "test") %>%
@@ -84,9 +87,9 @@ df_summarise <- df_clean %>%
 
 ```
 
-
 #plot curves
-```{r} 
+
+```{r}
 BZB_H_curve<- df_summarise |>
   filter(trial == "H") |>
 ggplot( 
@@ -96,12 +99,13 @@ ggplot(
   #geom_errorbar(aes(ymin = min, ymax = max, color = cipro_ug_mL, group =cipro_ug_mL), width = 0.2)+
    labs(title = "Ciprofloxacin-BZB Kiling Curve",
         subtitle = "Initial CFU ~ 5*10^5/mL per well; cipro-H2O stock",
-        y="Mean OD")
+        y="Mean OD",
+        caption = str_wrap("Cipro conc. is diluted by 2-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
 
 BZB_H_curve
 
 #set working directory before saving!
-ggsave("./plots_ggsave/Cipro_BZB_testRun_H-H2O_102626.png", plot = BZB_H_curve, units="px", width = 600, height = 450, dpi = 120)
+ggsave("./plots_ggsave/Cipro_BZB_testRun_H-H2O_102626.png", plot = BZB_H_curve, width = 7, height = 5, units = "in", dpi = 300)
 ```
 
 ```{r}
@@ -114,11 +118,12 @@ ggplot(
   #geom_errorbar(aes(ymin = min, ymax = max, color = cipro_ug_mL, group =cipro_ug_mL), width = 0.2)+
    labs(title = "Ciprofloxacin-BZB Kiling Curve",
         subtitle = "Initial CFU ~ 5*10^3/mL per well; cipro-H2O stock",
-        y="Mean OD")
+        y="Mean OD",
+        caption = str_wrap("Cipro conc. is diluted by 2-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
 
 BZB_L_curve
 
-ggsave("./plots_ggsave/Cipro_BZB_testRun_L-H2O_102626.png", plot = BZB_L_curve, units="px", width = 600, height = 450, dpi = 120)
+ggsave("./plots_ggsave/Cipro_BZB_testRun_L-H2O_102626.png", plot = BZB_L_curve, width = 7, height = 5, units = "in", dpi = 300)
 ```
 
 ```{r}
@@ -131,16 +136,18 @@ ggplot(
   #geom_errorbar(aes(ymin = min, ymax = max, color = cipro_ug_mL, group =cipro_ug_mL), width = 0.2)+
    labs(title = "Ciprofloxacin-BZB Kiling Curve",
         subtitle = "Initial CFU ~ 5*10^5/mL per well; cipro-HCL stock",
-        y="Mean OD")
+        y="Mean OD",
+        caption = str_wrap("Cipro conc. is diluted by 2-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
 
 BZB_HCL_curve
 
-ggsave("./plots_ggsave/Cipro_BZB_testRun_H-HCL_102626.png", plot = BZB_HCL_curve, units="px", width = 600, height = 450, dpi = 120)
+ggsave("./plots_ggsave/Cipro_BZB_testRun_H-HCL_102626.png", plot = BZB_HCL_curve, width = 7, height = 5, units = "in", dpi = 300)
 
 ```
 
 ## curves of replicates
-```{r} 
+
+```{r}
 BZB_H_reps<- df_clean |>
   filter(trial == "H") |>
 ggplot(aes(x = Time_h, y = OD, color = cipro_ug_mL)) +
@@ -149,12 +156,13 @@ ggplot(aes(x = Time_h, y = OD, color = cipro_ug_mL)) +
   facet_wrap(~trial_rep)+
    labs(title = "Ciprofloxacin-BZB Kiling Curve Triplicate",
         subtitle = "Initial CFU ~ 5*10^5/mL per well; cipro-H2O stock",
-        y="OD")
+        y="OD",
+        caption = str_wrap("Cipro conc. is diluted by 2-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
 
 BZB_H_reps
 
 #set working directory before saving!
-ggsave("./plots_ggsave/Cipro_BZB_testRun_H-H2O-reps_102626.png", plot = BZB_H_reps, units="px", width = 600, height = 450, dpi = 120)
+ggsave("./plots_ggsave/Cipro_BZB_testRun_H-H2O-reps_102626.png", plot = BZB_H_reps, width = 7, height = 5, units = "in", dpi = 300)
 ```
 
 ```{r}
@@ -166,13 +174,13 @@ ggplot(aes(x = Time_h, y = OD, color = cipro_ug_mL)) +
   facet_wrap(~trial_rep)+
    labs(title = "Ciprofloxacin-BZB Kiling Curve Triplicate",
         subtitle = "Initial CFU ~ 5*10^3/mL per well; cipro-H2O stock",
-        y="OD")
+        y="OD",
+        caption = str_wrap("Cipro conc. is diluted by 2-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
 
 BZB_L_reps
 
-ggsave("./plots_ggsave/Cipro_BZB_testRun_L-H2O-reps_102626.png", plot = BZB_L_reps, units="px", width = 600, height = 450, dpi = 120)
+ggsave("./plots_ggsave/Cipro_BZB_testRun_L-H2O-reps_102626.png", plot = BZB_L_reps, width = 7, height = 5, units = "in", dpi = 300)
 ```
-
 
 ```{r}
 BZB_HCL_reps<- df_clean |>
@@ -183,14 +191,15 @@ ggplot(aes(x = Time_h, y = OD, color = cipro_ug_mL)) +
   facet_wrap(~trial_rep)+
    labs(title = "Ciprofloxacin-BZB Kiling curve Duplicate",
         subtitle = "Initial CFU ~ 5*10^5/mL per well; cipro-HCL stock",
-        y="OD")
-
+        y="OD",
+        caption = str_wrap("Cipro conc. is diluted by 2-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
 BZB_HCL_reps
 
-ggsave("./plots_ggsave/Cipro_BZB_testRun_H-HCL-reps_102626.png", plot = BZB_HCL_reps, units="px", width = 600, height = 450, dpi = 120)
+ggsave("./plots_ggsave/Cipro_BZB_testRun_H-HCL-reps_102626.png", plot = BZB_HCL_reps, width = 7, height = 5, units = "in", dpi = 300)
 ```
 
 ## plot out controls
+
 ```{r}
 solvent_controls<- df_clean |>
    filter(trial_ID %in% c("GC_A","HCL_BZB", "H2O_BZB")) |>
