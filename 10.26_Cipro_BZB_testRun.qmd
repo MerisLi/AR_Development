@@ -154,7 +154,7 @@ ggplot(aes(x = Time_h, y = OD, color = cipro_ug_mL)) +
 BZB_H_reps
 
 #set working directory before saving!
-ggsave("./plots_ggsave/Cipro_BZB_testRun_H-H2O-reps_102626.png", plot = BZB_H_curve, units="px", width = 600, height = 450, dpi = 120)
+ggsave("./plots_ggsave/Cipro_BZB_testRun_H-H2O-reps_102626.png", plot = BZB_H_reps, units="px", width = 600, height = 450, dpi = 120)
 ```
 
 ```{r}
