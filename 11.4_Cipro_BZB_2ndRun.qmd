@@ -1,0 +1,160 @@
+---
+title: "11.4_Cipro_BZB_2ndRun"
+format: html
+editor: visual
+---
+
+#import file
+
+```{r}
+#make sure you set the folder where your file is saved as the current working directory
+#check whether the excel file names are the same and don't change the dataframe name
+library(readxl)
+library(tidyverse)
+
+#Put in file names
+cipro_BZB_1.5h <- read_excel("11.4_Cipro_BZB_2rdRun.xlsx", sheet="first")
+cipro_BZB_15h <- read_excel("11.4_Cipro_BZB_2rdRun.xlsx", sheet="second")
+key_ref <- read_excel("11.4_Cipro_BZB_2rdRun.xlsx", sheet="keys")
+```
+
+#clean and combine
+
+```{r}
+cipro_BZB_15h$"Cycle Nr." <- as.numeric(cipro_BZB_15h$"Cycle Nr.")
+
+cipro_BZB_1.5h$"Cycle Nr." <- as.numeric(cipro_BZB_1.5h$"Cycle Nr.")
+```
+
+```{r}
+cipro_BZB_15h$"Cycle Nr." <- cipro_BZB_15h$"Cycle Nr." + 90
+```
+
+```{r}
+cipro_BZB_15h$"Time [s]" <- cipro_BZB_15h$"Time [s]" + 5400
+
+```
+
+```{r}
+combined_df <- bind_rows(cipro_BZB_1.5h, cipro_BZB_15h)
+```
+
+```{r}
+#preserve both cycle nr. and time
+pivoted_OD <- combined_df %>%
+  select(-3)%>%
+pivot_longer(cols = -c(1,2), names_to = "well_ID", values_to = "OD")
+```
+
+```{r}
+#change Time [s] to Time [h]
+df_clean <- pivoted_OD%>%
+  mutate(Time_min=round(`Time [s]`/60,1),
+         Time_h=round(Time_min/60,1))%>%
+  rename(Cycle=`Cycle Nr.`,
+         Time_s=`Time [s]`)%>%
+  select(Cycle, Time_h, Time_min, everything())
+  
+```
+
+#add a key col
+
+```{r}
+df_clean<- left_join(df_clean, key_ref[, c("well_ID", "key", "cipro_ug_mL", "trial", "trial_rep", "trial_ID")], by = "well_ID")
+
+df_clean$cipro_ug_mL<-factor(as.numeric(df_clean$cipro_ug_mL))
+
+```
+
+#calculate mean from replicates
+
+```{r}
+df_summarise <- df_clean %>%
+  filter(trial != "test") %>%
+  group_by(Time_h, trial, cipro_ug_mL) %>%
+  summarise(
+    min=min(OD, na.rm = TRUE),
+    max=max(OD, na.rm = TRUE),
+    mean = mean(OD, na.rm = TRUE),
+    sd = sd(OD, na.rm = TRUE),
+    .groups = "drop") %>%
+  mutate(CV = sd/mean)
+
+```
+
+#plot curves
+
+```{r}
+BZB_H_curve<- df_summarise |>
+  filter(trial == "H") |>
+ggplot( 
+       aes(x = Time_h, y = mean, color = cipro_ug_mL)) +
+  geom_point() +
+  geom_line()+
+  #geom_errorbar(aes(ymin = min, ymax = max, color = cipro_ug_mL, group =cipro_ug_mL), width = 0.2)+
+   labs(title = "Ciprofloxacin-BZB Kiling Curve",
+        subtitle = "Initial CFU ~ 5*10^5/mL per well",
+        y="Mean OD",
+        caption = str_wrap("Cipro conc. is diluted by 2-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
+
+BZB_H_curve
+
+#set working directory before saving!
+ggsave("./plots_ggsave/Cipro_BZB_2ndRun_H_110426.png", plot = BZB_H_curve, width = 7, height = 5, units = "in", dpi = 300)
+```
+
+```{r}
+BZB_L_curve<- df_summarise |>
+  filter(trial == "L") |>
+ggplot( 
+       aes(x = Time_h, y = mean, color = cipro_ug_mL)) +
+  geom_point() +
+  geom_line()+
+  #geom_errorbar(aes(ymin = min, ymax = max, color = cipro_ug_mL, group =cipro_ug_mL), width = 0.2)+
+   labs(title = "Ciprofloxacin-BZB Kiling Curve",
+        subtitle = "Initial CFU ~ 5*10^3/mL per well",
+        y="Mean OD",
+        caption = str_wrap("Cipro conc. is diluted by 2-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA; Well D-12 got contaminated", width = 35))
+
+BZB_L_curve
+
+ggsave("./plots_ggsave/Cipro_BZB_2ndRun_L_110426.png", plot = BZB_L_curve, width = 7, height = 5, units = "in", dpi = 300)
+```
+
+## curves of replicates
+
+```{r}
+BZB_H_reps<- df_clean |>
+  filter(trial == "H") |>
+ggplot(aes(x = Time_h, y = OD, color = cipro_ug_mL)) +
+  geom_point() +
+  geom_line()+
+  facet_wrap(~trial_rep)+
+   labs(title = "Ciprofloxacin-BZB Kiling Curve Triplicate",
+        subtitle = "Initial CFU ~ 5*10^5/mL per well; cipro-H2O stock",
+        y="OD",
+        caption = str_wrap("Cipro conc. is diluted by 2-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
+
+BZB_H_reps
+
+#set working directory before saving!
+ggsave("./plots_ggsave/Cipro_BZB_2ndRun_H-reps_110426.png", plot = BZB_H_reps, width = 7, height = 5, units = "in", dpi = 300)
+```
+
+```{r}
+BZB_L_reps<- df_clean |>
+  filter(trial == "L") |>
+ggplot(aes(x = Time_h, y = OD, color = cipro_ug_mL)) +
+  geom_point() +
+  geom_line()+
+  facet_wrap(~trial_rep)+
+   labs(title = "Ciprofloxacin-BZB Kiling Curve Triplicate",
+        subtitle = "Initial CFU ~ 5*10^3/mL per well; cipro-H2O stock",
+        y="OD",
+        caption = str_wrap("Cipro conc. is diluted by 2-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA; Well D-12 got contaminated", width = 35))
+
+BZB_L_reps
+
+ggsave("./plots_ggsave/Cipro_BZB_2ndRun_L-reps_110426.png", plot = BZB_L_reps, width = 7, height = 5, units = "in", dpi = 300)
+```
+

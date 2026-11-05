@@ -18,8 +18,8 @@ library(readxl)
 library(tidyverse)
 
 #Put in file names
-cipro_BZB_1h <- read_excel("10.26_Cipro_BZB_testRun.xlsx", sheet="first_1h")
-cipro_BZB_15h <- read_excel("10.26_Cipro_BZB_testRun.xlsx", sheet="second_15h")
+cipro_BZB_1.5h <- read_excel("10.26_Cipro_BZB_testRun.xlsx", sheet="first")
+cipro_BZB_15h <- read_excel("10.26_Cipro_BZB_testRun.xlsx", sheet="second")
 key_ref <- read_excel("10.26_Cipro_BZB_testRun.xlsx", sheet="keys")
 ```
 
@@ -28,7 +28,7 @@ key_ref <- read_excel("10.26_Cipro_BZB_testRun.xlsx", sheet="keys")
 ```{r}
 cipro_BZB_15h$"Cycle Nr." <- as.numeric(cipro_BZB_15h$"Cycle Nr.")
 
-cipro_BZB_1h$"Cycle Nr." <- as.numeric(cipro_BZB_1h$"Cycle Nr.")
+cipro_BZB_1.5h$"Cycle Nr." <- as.numeric(cipro_BZB_1.5h$"Cycle Nr.")
 ```
 
 ```{r}
@@ -41,7 +41,7 @@ cipro_BZB_15h$"Time [s]" <- cipro_BZB_15h$"Time [s]" + 5400
 ```
 
 ```{r}
-combined_df <- bind_rows(cipro_BZB_1h, cipro_BZB_15h)
+combined_df <- bind_rows(cipro_BZB_1.5h, cipro_BZB_15h)
 ```
 
 ```{r}
