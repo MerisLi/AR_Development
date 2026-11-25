@@ -4,7 +4,6 @@ format: html
 editor: visual
 ---
 
-
 #import file
 
 ```{r}
@@ -43,7 +42,6 @@ combined_df <- bind_rows(cipro_BZB_1.5h, cipro_BZB_15h)
 ```{r}
 #preserve both cycle nr. and time
 pivoted_OD <- combined_df %>%
-  select(-3)%>%
 pivot_longer(cols = -c(1,2), names_to = "well_ID", values_to = "OD")
 ```
 
@@ -161,4 +159,3 @@ BZB_A6_reps
 #set working directory before saving!
 ggsave("./plots_ggsave/Cipro_BZB_A6-reps_NEW_111626.png", plot = BZB_A6_reps, width = 7, height = 5, units = "in", dpi = 300)
 ```
-
