@@ -1,0 +1,325 @@
+---
+title: "11.16_Cipro_BZB_wt+A6_NEW"
+format: html
+editor: visual
+---
+
+#import file
+
+```{r}
+#make sure you set the folder where your file is saved as the current working directory
+#check whether the excel file names are the same and don't change the dataframe name
+library(readxl)
+library(tidyverse)
+library(stringr)
+
+#Put in file names
+OLD_1.5h <- read_excel("11.23_Cipro_BZB_TECANtest_OLD.xlsx", sheet="first")
+OLD_15h <- read_excel("11.23_Cipro_BZB_TECANtest_OLD.xlsx", sheet="second") 
+OLD_ref <- read_excel("11.23_Cipro_BZB_TECANtest_OLD.xlsx", sheet="keys")
+#Old
+
+NEW_1.5h <- read_excel("11.23_Cipro_BZB_TECANtest_NEW.xlsx", sheet="first")
+NEW_15h <- read_excel("11.23_Cipro_BZB_TECANtest_NEW.xlsx", sheet="second") 
+NEW_ref <- read_excel("11.23_Cipro_BZB_TECANtest_NEW.xlsx", sheet="keys")
+```
+
+#NEW TECAN
+
+```{r}
+NEW_1.5h$"Cycle" <- as.numeric(NEW_1.5h$"Cycle")
+NEW_15h$"Cycle" <- as.numeric(NEW_15h$"Cycle")
+
+NEW_15h$"Cycle" <- NEW_15h$"Cycle" + 90
+
+NEW_15h$"Time_s" <- NEW_15h$"Time_s" + 5400
+
+combined_NEW <- bind_rows(NEW_1.5h, NEW_15h)
+
+#preserve both cycle nr. and time
+pivoted_OD_NEW <- combined_NEW %>%
+pivot_longer(cols = -c(1,2), names_to = "well_ID", values_to = "OD")
+
+#change Time [s] to Time [h]
+df_clean_NEW <- pivoted_OD_NEW%>%
+  mutate(Time_min=round(Time_s/60,1),
+         Time_h=round(Time_min/60,1))%>%
+  select(Cycle, Time_h, Time_min, everything())
+
+#add a key col
+df_clean_NEW<- left_join(df_clean_NEW, NEW_ref[, c("well_ID", "key", "cipro_ug_mL", "trial", "trial_rep", "trial_ID")], by = "well_ID")
+
+df_clean_NEW$cipro_ug_mL<-factor(as.numeric(df_clean_NEW$cipro_ug_mL))
+
+```
+
+#OLD TECAN
+
+```{r}
+OLD_1.5h$"Time_s" <- str_remove(OLD_1.5h$"Time_s", "s")
+OLD_15h$"Time_s" <- str_remove(OLD_15h$"Time_s", "s")
+
+OLD_1.5h$"Time_s" <- as.numeric(OLD_1.5h$"Time_s")
+OLD_15h$"Time_s" <- as.numeric(OLD_15h$"Time_s")
+
+OLD_15h$"Time_s" <- OLD_15h$"Time_s" + 5460
+
+combined_OLD <- bind_rows(OLD_1.5h, OLD_15h)
+
+#preserve both cycle nr. and time
+pivoted_OD_OLD <- combined_OLD %>%
+pivot_longer(cols = -c(1), names_to = "well_ID", values_to = "OD")
+
+#change Time [s] to Time [h]
+df_clean_OLD <- pivoted_OD_OLD%>%
+  mutate(Time_min=round(Time_s/60,1),
+         Time_h=round(Time_min/60,1))%>%
+  select(Time_h, Time_min, everything())
+
+#add a key col
+df_clean_OLD<- left_join(df_clean_OLD, OLD_ref[, c("well_ID", "key", "cipro_ug_mL", "trial", "trial_rep", "trial_ID")], by = "well_ID")
+
+df_clean_OLD$cipro_ug_mL<-factor(as.numeric(df_clean_OLD$cipro_ug_mL))
+```
+
+#calculate mean from replicates
+
+```{r}
+NEW_summarise <- df_clean_NEW %>%
+  filter(trial != "test") %>%
+  group_by(Time_h, trial, cipro_ug_mL) %>%
+  summarise(
+    min=min(OD, na.rm = TRUE),
+    max=max(OD, na.rm = TRUE),
+    mean = mean(OD, na.rm = TRUE),
+    sd = sd(OD, na.rm = TRUE),
+    .groups = "drop") %>%
+  mutate(
+    CV = sd/mean,
+    log_mean = log10(mean),
+    lower_error = log10(mean) - log10(mean - sd),
+    upper_error = log10(mean + sd) - log10(mean))
+
+```
+
+```{r}
+OLD_summarise <- df_clean_OLD %>%
+  filter(trial != "test") %>%
+  group_by(Time_h, trial, cipro_ug_mL) %>%
+  summarise(
+    min=min(OD, na.rm = TRUE),
+    max=max(OD, na.rm = TRUE),
+    mean = mean(OD, na.rm = TRUE),
+    sd = sd(OD, na.rm = TRUE),
+    .groups = "drop") %>%
+  mutate(
+    CV = sd/mean,
+    log_mean = log10(mean),
+    lower_error = log10(mean) - log10(mean - sd),
+    upper_error = log10(mean + sd) - log10(mean))
+```
+
+#plot curves
+
+##curves of mean OD
+
+```{r}
+NEW_freshCipro<- NEW_summarise |>
+  filter(trial == "F") |>
+ggplot( 
+       aes(x = Time_h, y = mean, color = cipro_ug_mL)) +
+  geom_point() +
+  geom_line()+
+  #geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd, color = cipro_ug_mL), width = 0.2)+
+   labs(title = "Ciprofloxacin-BZB Kiling Curve, New TECAN Trial",
+        subtitle = "Initial CFU ~ 5*10^5/mL per well; Using freshly made Cipro Stock",
+        y="Mean OD",
+        caption = str_wrap("Cipro conc. is diluted by 1.5-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
+
+NEW_freshCipro
+
+#set working directory before saving!
+ggsave("./plots_ggsave/Cipro_BZB_NewTECAN_freshCipro_112326.png", plot = NEW_freshCipro, width = 7, height = 5, units = "in", dpi = 300)
+```
+
+```{r}
+NEW_oldCipro<- NEW_summarise |>
+  filter(trial == "O") |>
+ggplot( 
+       aes(x = Time_h, y = mean, color = cipro_ug_mL)) +
+  geom_point() +
+  geom_line()+
+  #geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd, color = cipro_ug_mL), width = 0.2)+
+   labs(title = "Ciprofloxacin-BZB Kiling Curve, New TECAN Trial",
+        subtitle = "Initial CFU ~ 5*10^5/mL per well; Using a Cipro Stock made 1-week ago",
+        y="Mean OD",
+        caption = str_wrap("Cipro conc. is diluted by 1.5-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
+
+NEW_oldCipro
+
+#set working directory before saving!
+ggsave("./plots_ggsave/Cipro_BZB_NewTECAN_oldCipro_112326.png", plot = NEW_oldCipro, width = 7, height = 5, units = "in", dpi = 300)
+```
+
+```{r}
+NEW_CiproCompare<- NEW_summarise |>
+ggplot( 
+       aes(x = Time_h, y = mean, color = trial)) +
+  geom_point() +
+  geom_line()+
+  facet_wrap(~cipro_ug_mL)+
+   labs(title = "Ciprofloxacin-BZB Kiling Curve, by Cipro Concentration",
+        subtitle = "Initial CFU ~ 5*10^5/mL per well; New TECAN Trial",
+        y="Mean OD",
+        caption = str_wrap("Cipro conc. is diluted by 1.5-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
+
+NEW_CiproCompare
+
+#set working directory before saving!
+ggsave("./plots_ggsave/Cipro_BZB_NewTECAN_CiproCompare_112326.png", plot = NEW_CiproCompare, width = 7, height = 5, units = "in", dpi = 300)
+```
+
+```{r}
+OLD_freshCipro<- OLD_summarise |>
+  filter(trial == "F") |>
+ggplot( 
+       aes(x = Time_h, y = mean, color = cipro_ug_mL)) +
+  geom_point() +
+  geom_line()+
+  #geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd, color = cipro_ug_mL), width = 0.2)+
+   labs(title = "Ciprofloxacin-BZB Kiling Curve, Old TECAN Trial",
+        subtitle = "Initial CFU ~ 5*10^5/mL per well; Using freshly made Cipro Stock",
+        y="Mean OD",
+        caption = str_wrap("Cipro conc. is diluted by 1.5-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
+
+OLD_freshCipro
+
+#set working directory before saving!
+ggsave("./plots_ggsave/Cipro_BZB_OldTECAN_freshCipro_112326.png", plot = OLD_freshCipro, width = 7, height = 5, units = "in", dpi = 300)
+```
+
+```{r}
+OLD_oldCipro<- OLD_summarise |>
+  filter(trial == "O") |>
+ggplot( 
+       aes(x = Time_h, y = mean, color = cipro_ug_mL)) +
+  geom_point() +
+  geom_line()+
+  #geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd, color = cipro_ug_mL), width = 0.2)+
+   labs(title = "Ciprofloxacin-BZB Kiling Curve, Old TECAN Trial",
+        subtitle = "Initial CFU ~ 5*10^5/mL per well; Using a Cipro Stock made 1-week ago",
+        y="Mean OD",
+        caption = str_wrap("Cipro conc. is diluted by 1.5-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
+
+OLD_oldCipro
+
+#set working directory before saving!
+ggsave("./plots_ggsave/Cipro_BZB_OldTECAN_oldCipro_112326.png", plot = OLD_oldCipro, width = 7, height = 5, units = "in", dpi = 300)
+```
+
+## curves of replicates
+
+```{r}
+NEW_fresh_reps<- df_clean_NEW |>
+  filter(trial == "F") |>
+ggplot(aes(x = Time_h, y = OD, color = cipro_ug_mL)) +
+  geom_point() +
+  geom_line()+
+  facet_wrap(~trial_rep)+
+   labs(title = "Ciprofloxacin-BZB Kiling Curve Triplicate, New TECAN Trial",
+        subtitle = "Initial CFU ~ 5*10^5/mL per well; Using freshly made Cipro Stock",
+        y="OD",
+        caption = str_wrap("Cipro conc. is diluted by 1.5-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
+
+NEW_fresh_reps
+
+#set working directory before saving!
+ggsave("./plots_ggsave/Cipro_BZB_reps_NewTECAN_freshCipro_112326.png", plot = NEW_fresh_reps, width = 7, height = 5, units = "in", dpi = 300)
+```
+
+```{r}
+NEW_oldC_reps<- df_clean_NEW |>
+  filter(trial == "O") |>
+ggplot(aes(x = Time_h, y = OD, color = cipro_ug_mL)) +
+  geom_point() +
+  geom_line()+
+  facet_wrap(~trial_rep)+
+   labs(title = "Ciprofloxacin-BZB Kiling Curve Triplicate, New TECAN Trial",
+        subtitle = "Initial CFU ~ 5*10^5/mL per well; Using a Cipro Stock made 1-week ago",
+        y="OD",
+        caption = str_wrap("Cipro conc. is diluted by 1.5-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
+
+NEW_oldC_reps
+
+#set working directory before saving!
+ggsave("./plots_ggsave/Cipro_BZB_reps_NewTECAN_oldCipro_112326.png", plot = NEW_oldC_reps, width = 7, height = 5, units = "in", dpi = 300)
+```
+
+```{r}
+OLD_fresh_reps<- df_clean_OLD |>
+  filter(trial == "F") |>
+ggplot(aes(x = Time_h, y = OD, color = cipro_ug_mL)) +
+  geom_point() +
+  geom_line()+
+  facet_wrap(~trial_rep)+
+   labs(title = "Ciprofloxacin-BZB Kiling Curve Triplicate, Old TECAN Trial",
+        subtitle = "Initial CFU ~ 5*10^5/mL per well; Using freshly made Cipro Stock",
+        y="OD",
+        caption = str_wrap("Cipro conc. is diluted by 1.5-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
+
+OLD_fresh_reps
+
+#set working directory before saving!
+ggsave("./plots_ggsave/Cipro_BZB_reps_OldTECAN_freshCipro_112326.png", plot = OLD_fresh_reps, width = 7, height = 5, units = "in", dpi = 300)
+```
+
+```{r}
+OLD_oldC_reps<- df_clean_OLD |>
+  filter(trial == "O") |>
+ggplot(aes(x = Time_h, y = OD, color = cipro_ug_mL)) +
+  geom_point() +
+  geom_line()+
+  facet_wrap(~trial_rep)+
+   labs(title = "Ciprofloxacin-BZB Kiling Curve Triplicate, Old TECAN Trial",
+        subtitle = "Initial CFU ~ 5*10^5/mL per well; Using a Cipro Stock made 1-week ago",
+        y="OD",
+        caption = str_wrap("Cipro conc. is diluted by 1.5-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
+
+OLD_oldC_reps
+
+#set working directory before saving!
+ggsave("./plots_ggsave/Cipro_BZB_reps_OldTECAN_oldCipro_112326.png", plot = OLD_oldC_reps, width = 7, height = 5, units = "in", dpi = 300)
+```
+
+##NEW & OLD TECAN comparison
+
+```{r}
+TECANcompare<- inner_join(
+  NEW_summarise[,c("Time_h", "trial", "cipro_ug_mL", "mean")],
+  OLD_summarise[,c("Time_h", "trial", "cipro_ug_mL", "mean")],
+  by= c("Time_h", "trial", "cipro_ug_mL"),
+  suffix = c(".NewT", ".OldT"))
+
+TECANcompare <- TECANcompare|>
+  pivot_longer(cols = -c(1,2,3), names_to = "TECAN", values_to = "meanOD")
+```
+
+```{r}
+TECANcompare_curve<- TECANcompare |>
+ filter(trial == "F") |>
+ggplot( 
+       aes(x = Time_h, y = meanOD, color = TECAN)) +
+  geom_point() +
+  geom_line()+
+ facet_wrap(~cipro_ug_mL)+
+   labs(title = "Ciprofloxacin-BZB Kiling Curve, by Cipro Concentration",
+        subtitle = "Initial CFU ~ 5*10^5/mL per well; Using freshly made Cipro Stock",
+        y="Mean OD",
+        color="Tecan Model",
+        caption = str_wrap("Cipro conc. is diluted by 1.5-fold; Growth control: cipro conc.= 0; MHB-only blank: cipro conc.= NA", width = 35))
+
+TECANcompare_curve
+
+#set working directory before saving!
+ggsave("./plots_ggsave/Cipro_BZB_TECANcompare_freshCipro_112326.png", plot = TECANcompare_curve, width = 7, height = 5, units = "in", dpi = 300)
+```
